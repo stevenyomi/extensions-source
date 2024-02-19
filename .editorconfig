@@ -5,7 +5,7 @@ root = true
 insert_final_newline = true
 end_of_line = lf
 
-[*.kt]
+[*.{kt,kts}]
 charset = utf-8
 indent_size = 4
 indent_style = space
@@ -14,6 +14,10 @@ ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
 ij_kotlin_name_count_to_use_star_import = 2147483647
 ij_kotlin_name_count_to_use_star_import_for_members = 2147483647
+# ktlint_standard_function-signature = disabled
+# ktlint_standard_multiline-expression-wrapping = disabled
+# ktlint_standard_string-template-indent = disabled
+ktlint_standard = disabled
 
 [*.properties]
 charset = utf-8
