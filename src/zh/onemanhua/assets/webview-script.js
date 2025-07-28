@@ -18,26 +18,29 @@ function waitForElm(selector) {
 let hasImgReady = false
 let scrolledOnce = false
 let scrolling = false
-async function scroll() {
+async function scroll(fromStart = false) {
     if (scrolling || !hasImgReady) return
+    window.__interface__.log("scroll")
     scrolling = true
-    window.scrollTo(0, 0)
+    const maxScroll = document.documentElement.scrollTop + 5000
+    if (fromStart) window.scrollTo(0, 0)
     await new Promise((resolve, reject) => {
         try {
-            const maxScroll = Number.MAX_SAFE_INTEGER
             let lastScroll = 0
+            window.__interface__.log(`start scrolling from ${document.documentElement.scrollTop}`)
             const interval = setInterval(() => {
                 window.scrollBy(0, 100)
                 const scrollTop = document.documentElement.scrollTop
-                if (scrollTop === maxScroll || scrollTop === lastScroll) {
+                if (scrollTop >= maxScroll || scrollTop === lastScroll) {
                     clearInterval(interval)
                     scrolling = false
                     scrolledOnce = true
+                    window.__interface__.log(`ended scrolling at ${document.documentElement.scrollTop}`)
                     resolve()
                 } else {
                     lastScroll = scrollTop
                 }
-            }, 100)
+            }, 200)
         } catch (err) {
             reject(err.toString())
         }
@@ -51,14 +54,26 @@ function loadPic(pageIndex) {
     }
     document.querySelector("#mangalist").dispatchEvent(new CustomEvent('scroll'))
     const page = pageIndex + 1
+    window.__interface__.log(`loadPic(${page})`)
     const target = document.querySelector(`div.mh_comicpic[p="${page}"] img[src]`)
     const mh_loaderr = document.querySelector(`div.mh_comicpic[p="${page}"] .mh_loaderr`)
     if (target) {
+        window.__interface__.log(`target.scrollIntoView()`)
         target.scrollIntoView()
     } else if (mh_loaderr?.style.display != 'none') {
+        window.__interface__.log(`mh_loaderr.scrollIntoView()`)
         mh_loaderr.scrollIntoView()
         mh_loaderr.querySelector('.mh_btn')?.click()
     } else {
+        const x = document.querySelector(`div.mh_comicpic[p="${page}"]`)
+        window.__interface__.log(`else: ${x.innerHTML}`)
+        window.__interface__.log(`scrollTop = ${document.documentElement.scrollTop}`)
+        window.__interface__.log(JSON.stringify(x.getBoundingClientRect()))
+        if (x.getBoundingClientRect().top < 0) {
+            x.scrollIntoView()
+            window.__interface__.log(`after scrollIntoView ${document.documentElement.scrollTop}`)
+        }
+//        x.scrollIntoView()
         scroll()
     }
 }
@@ -98,3 +113,4 @@ const observer = new MutationObserver(() => {
     }
 })
 observer.observe(document.body, { subtree: true, childList: true })
+window.__interface__.log("JS load finished")
