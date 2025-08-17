@@ -11,6 +11,8 @@ on:
       - '.github/scripts/**'
       - '.github/workflows/build_push.yml'
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
@@ -22,7 +24,7 @@ env:
 jobs:
   prepare:
     name: Prepare job
-    runs-on: 'ubuntu-24.04'
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
@@ -32,8 +34,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
 
       - name: Set up Java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -57,7 +57,7 @@ jobs:
   build:
     name: Build extensions (${{ matrix.chunk.number }})
     needs: prepare
-    runs-on: 'ubuntu-24.04'
+    runs-on: ubuntu-latest
     if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -66,8 +66,6 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
-
-      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
 
       - name: Set up Java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -80,9 +78,9 @@ jobs:
         with:
           cache-read-only: ${{ matrix.chunk.number > 1 }}
 
-      # - name: Prepare signing key
-      #   run: |
-      #     echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
+      - name: Prepare signing key
+        run: |
+          echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
 
       - name: Build extensions (${{ matrix.chunk.number }})
         env:
@@ -95,23 +93,21 @@ jobs:
 
       - name: Upload APKs (${{ matrix.chunk.number }})
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        # if: "github.repository == 'keiyoushi/extensions-source'"
+        if: "github.repository == 'keiyoushi/extensions-source'"
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
           retention-days: 1
 
-      # - name: Clean up CI files
-      #   run: rm signingkey.jks
+      - name: Clean up CI files
+        run: rm signingkey.jks
 
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    # if: "github.repository == 'keiyoushi/extensions-source'"
-    runs-on: 'ubuntu-24.04'
+    if: "github.repository == 'keiyoushi/extensions-source'"
+    runs-on: ubuntu-latest
     steps:
-      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
-
       - name: Download APK artifacts
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
@@ -130,28 +126,28 @@ jobs:
           path: main
           persist-credentials: false
 
-      # - name: Create repo artifacts
-      #   run: |
-      #     cd main
-      #     python ./.github/scripts/move-built-apks.py
-      #     INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
-      #     curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
-      #     java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
-      #     python ./.github/scripts/create-repo.py
+      - name: Create repo artifacts
+        run: |
+          cd main
+          python ./.github/scripts/move-built-apks.py
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
+          java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
+          python ./.github/scripts/create-repo.py
 
-      # - name: Checkout repo branch
-      #   uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      #   with:
-      #     repository: keiyoushi/extensions
-      #     token: ${{ secrets.BOT_PAT }}
-      #     ref: repo
-      #     path: repo
-      #     persist-credentials: true
+      - name: Checkout repo branch
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: keiyoushi/extensions
+          token: ${{ secrets.BOT_PAT }}
+          ref: repo
+          path: repo
+          persist-credentials: true
 
-      # - name: Merge and deploy repo
-      #   env:
-      #     DELETE: ${{ needs.prepare.outputs.delete }}
-      #   run: |
-      #     cd repo
-      #     python ../main/.github/scripts/merge-repo.py "$DELETE"
-      #     ../main/.github/scripts/commit-repo.sh
+      - name: Merge and deploy repo
+        env:
+          DELETE: ${{ needs.prepare.outputs.delete }}
+        run: |
+          cd repo
+          python ../main/.github/scripts/merge-repo.py "$DELETE"
+          ../main/.github/scripts/commit-repo.sh

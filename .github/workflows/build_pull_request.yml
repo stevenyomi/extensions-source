@@ -8,6 +8,8 @@ on:
       - '!.github/**'
       - '.github/workflows/build_pull_request.yml'
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -19,7 +21,7 @@ env:
 jobs:
   prepare:
     name: Prepare job
-    runs-on: 'ubuntu-24.04'
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
@@ -49,7 +51,7 @@ jobs:
   build:
     name: Build extensions (${{ matrix.chunk.number }})
     needs: prepare
-    runs-on: 'ubuntu-24.04'
+    runs-on: ubuntu-latest
     if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
